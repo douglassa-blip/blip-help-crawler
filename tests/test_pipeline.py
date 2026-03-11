@@ -1,29 +1,10 @@
-from pathlib import Path
-
-from src.pipelines.export_full import run_full_export
+from src.transformers.chunking import chunk_text
 
 
-def test_full_export_generates_expected_outputs(tmp_path: Path):
-    raw_articles = [
-        {
-            "id": 1,
-            "title": "A",
-            "locale": "pt-br",
-            "body": "<p>A</p>",
-            "url": "https://help.blip.ai/a",
-        },
-        {
-            "id": 1,
-            "title": "A duplicated",
-            "locale": "pt-br",
-            "body": "<p>A</p>",
-            "url": "https://help.blip.ai/a",
-        },
-    ]
-
-    manifest = run_full_export(raw_articles, output_root=tmp_path, source_used="api")
-
-    assert manifest["deduped"] == 1
-    assert (tmp_path / "exports" / "articles.jsonl").exists()
-    assert (tmp_path / "exports" / "articles.csv").exists()
-    assert (tmp_path / "exports" / "manifest.json").exists()
+def test_chunking_uses_800_chars_default():
+    text = "a" * 1700
+    chunks = list(chunk_text(text))
+    assert len(chunks) == 3
+    assert len(chunks[0]) == 800
+    assert len(chunks[1]) == 800
+    assert len(chunks[2]) == 100

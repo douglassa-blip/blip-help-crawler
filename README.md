@@ -1,42 +1,12 @@
 # blip-help-export
 
-Pipeline em Python para exportar conteúdos públicos do `https://help.blip.ai` usando API do Zendesk como fonte primária e crawler HTTP/HTML como fallback.
+Exportador da base de conhecimento `https://help.blip.ai` com descoberta via sitemap e geração de dataset para IA/RAG.
 
-## Funcionalidades
+## Pipeline
 
-- Descoberta completa de artigos por paginação da API Zendesk.
-- Coleta de metadados e conteúdo do artigo.
-- Modo `full` e `incremental` por `updated_at`.
-- Saídas em `data/raw`, `data/normalized`, `data/markdown` e `data/exports`.
-- Export consolidado em `articles.jsonl`, `articles.csv` e `manifest.json`.
-- Deduplicação por `id` e, secundariamente, por URL canônica.
-- Workflow GitHub Actions com `workflow_dispatch` e inputs para execução manual.
+`sitemap.xml -> URLs -> filtro /articles/ -> download -> limpeza HTML -> normalização -> markdown -> dataset -> chunking`
 
-## Estrutura
-
-```text
-src/
-  clients/
-    zendesk.py
-    crawler.py
-  pipelines/
-    export_full.py
-    export_incremental.py
-  transformers/
-    normalize.py
-    markdown.py
-    chunking.py
-  utils/
-    logging.py
-    retries.py
-    files.py
-data/
-  raw/
-  normalized/
-  markdown/
-  exports/
-.github/workflows/export-help-center.yml
-```
+Sitemap utilizado: `https://help.blip.ai/hc/sitemap.xml`
 
 ## Setup
 
@@ -44,43 +14,57 @@ data/
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env
 ```
-
-Configure variáveis/Secrets:
-
-- `ZENDESK_SUBDOMAIN`
-- `ZENDESK_EMAIL`
-- `ZENDESK_API_TOKEN`
 
 ## Execução local
 
 ### Full
 
 ```bash
-python -m src.main --mode full --source auto --locale pt-br
+python src/pipelines/export_full.py --locale pt-br --output-root data
 ```
 
 ### Incremental
 
 ```bash
-python -m src.main --mode incremental --source api --locale pt-br --updated-since 2024-01-01T00:00:00Z
+python src/pipelines/export_incremental.py --locale pt-br --output-root data
 ```
+
+## Estrutura de saída
+
+```text
+data/
+  raw/
+    {article_id}.html
+  normalized/
+    {article_id}.json
+  markdown/
+    {article_id}.md
+  exports/
+    articles.jsonl
+    articles.csv
+    chunks.jsonl
+    manifest.json
+  state.json
+```
+
+## Incremental
+
+No modo incremental, o timestamp da última execução é salvo em `data/state.json`.
+Somente artigos com `updated_at > last_run` permanecem no dataset incremental.
 
 ## GitHub Actions
 
 Workflow: `.github/workflows/export-help-center.yml`
 
-Inputs disponíveis no `Run workflow`:
+Trigger manual (`workflow_dispatch`) com inputs:
+- `mode` (`full` ou `incremental`)
+- `locale` (ex.: `pt-br`)
+- `publish_artifacts` (`true/false`)
 
-- `mode`: `full` ou `incremental`
-- `source`: `api`, `crawler` ou `auto`
-- `locale`
-- `publish_artifacts`: `true/false`
-- `updated_since` (usado no incremental)
-
-## Testes
-
-```bash
-pytest
-```
+Artifacts publicados:
+- `data/exports/articles.jsonl`
+- `data/exports/articles.csv`
+- `data/exports/chunks.jsonl`
+- `data/markdown/`
+- `data/exports/manifest.json`

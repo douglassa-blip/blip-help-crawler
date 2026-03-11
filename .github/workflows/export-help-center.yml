@@ -11,15 +11,6 @@ on:
         options:
           - full
           - incremental
-      source:
-        description: "Data source"
-        required: true
-        default: "auto"
-        type: choice
-        options:
-          - api
-          - crawler
-          - auto
       locale:
         description: "Locale filter (e.g. pt-br)"
         required: false
@@ -29,9 +20,6 @@ on:
         required: true
         default: true
         type: boolean
-      updated_since:
-        description: "ISO datetime for incremental mode"
-        required: false
 
 jobs:
   export:
@@ -50,18 +38,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run export pipeline
-        env:
-          ZENDESK_SUBDOMAIN: ${{ secrets.ZENDESK_SUBDOMAIN }}
-          ZENDESK_EMAIL: ${{ secrets.ZENDESK_EMAIL }}
-          ZENDESK_API_TOKEN: ${{ secrets.ZENDESK_API_TOKEN }}
+      - name: Run crawler pipeline
         run: |
-          CMD="python -m src.main --mode '${{ github.event.inputs.mode }}' --source '${{ github.event.inputs.source }}' --locale '${{ github.event.inputs.locale }}'"
-          if [ "${{ github.event.inputs.mode }}" = "incremental" ] && [ -n "${{ github.event.inputs.updated_since }}" ]; then
-            CMD="$CMD --updated-since '${{ github.event.inputs.updated_since }}'"
-          fi
-          echo "$CMD"
-          eval "$CMD"
+          python -m src.main --mode "${{ github.event.inputs.mode }}" --locale "${{ github.event.inputs.locale }}"
 
       - name: Upload artifacts
         if: ${{ github.event.inputs.publish_artifacts == 'true' }}
@@ -69,7 +48,7 @@ jobs:
         with:
           name: help-center-export
           path: |
-            data/raw
-            data/normalized
-            data/markdown
             data/exports
+            data/markdown
+            data/exports/chunks.jsonl
+            data/exports/manifest.json

@@ -1,24 +1,25 @@
-from src.transformers.normalize import normalize_article
+from src.transformers.normalize import clean_html, normalize_article
 
 
-def test_normalize_article_maps_fields():
+def test_clean_html_removes_navigation_and_scripts():
+    html = "<main><nav>menu</nav><h1>Titulo</h1><script>x</script><p>texto</p></main>"
+    cleaned = clean_html(html)
+    assert "menu" not in cleaned
+    assert "<script" not in cleaned
+
+
+def test_normalize_article_maps_required_fields():
     raw = {
-        "id": 123,
-        "title": "Hello",
+        "article_id": "360012345678",
+        "title": "Como configurar",
+        "url": "https://help.blip.ai/hc/pt-br/articles/360012345678",
         "locale": "pt-br",
-        "section_id": 10,
-        "category_id": 20,
-        "author_id": 30,
-        "created_at": "2024-01-01T10:00:00Z",
-        "updated_at": "2024-01-02T10:00:00Z",
-        "body": "<p>body</p>",
-        "url": "https://help.blip.ai/hc/pt-br/articles/123",
-        "draft": False,
+        "category": "Desk",
+        "section": "Config",
+        "updated_at": "2024-01-01T00:00:00Z",
+        "html": "<article><h1>Como configurar</h1><p>Texto</p></article>",
     }
-
     article = normalize_article(raw)
-
-    assert article.article_id == "123"
+    assert article.article_id == "360012345678"
     assert article.locale == "pt-br"
-    assert article.body_html == "<p>body</p>"
-    assert str(article.source_url).startswith("https://help.blip.ai")
+    assert "Texto" in article.content
